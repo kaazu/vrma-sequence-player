@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VRMA Sequence Player</title>
+<meta name="description" content="Play multiple VRMA motions back-to-back on a VRM model and record them as a single video, right in the browser.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+/* Layout: stage (the recorded frame) on the left, a numbered work panel on the right; stacks on narrow screens. */
+:root {
+  --bg: #f3f1f6; --surface: #ffffff; --line: #dcd7e4; --fg: #26212e; --muted: #6c6478;
+  --accent: #c2417f; --accent-fg: #ffffff; --rec: #c8342f; --stage-edge: #b9b2c6;
+  --display: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif;
+  --body: system-ui, "Yu Gothic UI", "Hiragino Sans", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #17141c; --surface: #211d28; --line: #3a3445; --fg: #ece8f2; --muted: #a39bb0;
+  --accent: #ef7fb2; --accent-fg: #2a0f1c; --rec: #f0625c; --stage-edge: #4a4358; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #17141c; --surface: #211d28; --line: #3a3445; --fg: #ece8f2; --muted: #a39bb0;
+  --accent: #ef7fb2; --accent-fg: #2a0f1c; --rec: #f0625c; --stage-edge: #4a4358; color-scheme: dark }
+* { box-sizing: border-box }
+html { color-scheme: light }
+body { margin: 0 }
+[hidden] { display: none !important }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.6;
+  padding-inline: 16px; padding-block: 20px 40px }
+.wrap { max-width: 1040px; margin-inline: auto; display: flex; flex-direction: column; gap: 20px }
+header h1 { font-family: var(--display); font-weight: 700; font-size: 1.6rem; margin: 0; text-wrap: balance }
+header h1 small { font-size: .6em; font-weight: 500; color: var(--muted); white-space: nowrap }
+header p { margin: 4px 0 0; color: var(--muted); max-width: 60ch }
+.cols { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start }
+.stage-col { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 12px; align-items: center }
+.panel { flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 22px }
+.stage { position: relative; border: 1px solid var(--stage-edge); line-height: 0; max-width: 100% }
+canvas { display: block; max-width: 100%; max-height: 72vh; height: auto; width: auto }
+.empty { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center;
+  line-height: 1.6; color: #3d3748; font-family: var(--display); font-weight: 500 }
+.transport { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 8px }
+.transport .row { display: flex; gap: 10px; align-items: center }
+.time { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap }
+input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent) }
+section h2 { font-family: var(--display); font-size: 1.05rem; font-weight: 700; margin: 0 0 8px; display: flex; gap: 8px; align-items: baseline }
+section h2 span { color: var(--accent); font-variant-numeric: tabular-nums }
+section { display: flex; flex-direction: column; gap: 8px }
+.hint { color: var(--muted); font-size: .88rem; margin: 0 }
+button, .filebtn { font: inherit; border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  border-radius: 6px; padding: 6px 14px; cursor: pointer }
+button:hover:not(:disabled), .filebtn:hover { border-color: var(--accent) }
+button:disabled { opacity: .45; cursor: default }
+button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600 }
+button.rec { background: var(--rec); color: #fff; border-color: var(--rec); font-weight: 600 }
+.filebtn { display: inline-block; align-self: flex-start }
+.filebtn input { position: absolute; opacity: 0; width: 1px; height: 1px }
+.fname { color: var(--muted); font-size: .9rem; overflow-wrap: anywhere }
+ol.clips { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line) }
+ol.clips li { display: flex; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line) }
+ol.clips .n { color: var(--accent); font-variant-numeric: tabular-nums; width: 1.4em }
+ol.clips .nm { flex: 1; min-width: 0; overflow-wrap: anywhere }
+ol.clips .d { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap }
+ol.clips button { padding: 2px 8px }
+.total { font-variant-numeric: tabular-nums; font-weight: 600 }
+.grid { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: center }
+.grid label { color: var(--muted); font-size: .9rem }
+select, input[type=color] { font: inherit; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px }
+input[type=color] { padding: 2px; width: 56px; height: 32px }
+.check { display: flex; gap: 8px; align-items: center }
+.btnrow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center }
+#status { min-height: 1.6em; margin: 0 }
+#status.err { color: var(--rec) }
+video { max-width: 100%; max-height: 320px; border: 1px solid var(--line); align-self: flex-start }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>VRMA Sequence Player <small>VRMA連続プレイヤー</small></h1>
+    <p>VRMモデルに複数のVRMAモーションを順番に続けて再生し、1本の動画として録画します。ファイルはこのページの中だけで処理され、外部には送信されません。</p>
+  </header>
+  <div class="cols">
+    <div class="stage-col">
+      <div class="stage">
+        <canvas id="cv" width="720" height="1280"></canvas>
+        <div class="empty" id="empty">VRMモデルを読み込むと<br>ここに表示されます</div>
+      </div>
+      <div class="transport">
+        <div class="row">
+          <button id="play" class="primary" disabled>再生</button>
+          <input type="range" id="seek" min="0" max="1" step="0.001" value="0" disabled aria-label="再生位置">
+        </div>
+        <div class="time"><span id="tnow">0.00</span> / <span id="ttotal">0.00</span> 秒　<span id="tclip"></span></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <section>
+        <h2><span>1</span>モデル</h2>
+        <label class="filebtn">VRMファイルを選ぶ<input type="file" id="vrmFile" accept=".vrm"></label>
+        <div class="fname" id="vrmName">未選択</div>
+      </section>
+
+      <section>
+        <h2><span>2</span>モーション</h2>
+        <label class="filebtn">VRMAファイルを選ぶ(複数可)<input type="file" id="vrmaFile" accept=".vrma" multiple></label>
+        <p class="hint">ファイル名の順に並びます。↑↓で入れ替えできます。</p>
+        <ol class="clips" id="clips"></ol>
+        <div>合計 <span class="total" id="sum">0.00</span> 秒</div>
+        <label class="check"><input type="checkbox" id="blend" checked>つなぎ目を0.2秒かけてなめらかにする</label>
+        <label class="check"><input type="checkbox" id="carry" checked>前の動きが終わった位置から次を始める</label>
+      </section>
+
+      <section>
+        <h2><span>3</span>表情</h2>
+        <div class="grid">
+          <label for="expr">表情</label>
+          <select id="expr">
+            <option value="">モーションのまま</option>
+            <option value="happy" selected>笑顔</option>
+            <option value="relaxed">おだやか</option>
+            <option value="surprised">驚き</option>
+            <option value="sad">悲しい</option>
+          </select>
+          <label for="exprv">強さ</label>
+          <input type="range" id="exprv" min="0" max="1" step="0.01" value="0.7">
+        </div>
+        <label class="check"><input type="checkbox" id="blink" checked>まばたきを入れる</label>
+        <p class="hint">選んだ表情を最初から最後まで重ねます。「モーションのまま」はVRMAに入っている表情だけを使います。</p>
+      </section>
+
+      <section>
+        <h2><span>4</span>画面</h2>
+        <div class="grid">
+          <label for="size">サイズ</label>
+          <select id="size">
+            <option value="720x1280">縦 720×1280</option>
+            <option value="1080x1920">縦 1080×1920</option>
+            <option value="1280x720">横 1280×720</option>
+            <option value="1920x1080">横 1920×1080</option>
+          </select>
+          <label for="bgc">背景色</label>
+          <input type="color" id="bgc" value="#8a8f98">
+          <label for="zoom">距離</label>
+          <input type="range" id="zoom" min="0.6" max="2" step="0.01" value="1">
+          <label for="camy">高さ</label>
+          <input type="range" id="camy" min="-0.5" max="0.5" step="0.01" value="0">
+        </div>
+        <p class="hint">ジャンプや手を上げる動きで体が切れないよう、上下に余白を残してください。</p>
+      </section>
+
+      <section>
+        <h2><span>5</span>録画</h2>
+        <div class="btnrow">
+          <button id="rec" class="rec" disabled>最初から録画する</button>
+          <button id="stop" hidden>中止</button>
+        </div>
+        <p class="hint">録画中は実時間で再生します。終わるまでこのページを表示したままにしてください。</p>
+        <p id="status" role="status"></p>
+        <video id="preview" controls hidden></video>
+        <div class="btnrow">
+          <button id="save" class="primary" hidden>動画を保存する</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{"imports":{
+"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+"three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+"@pixiv/three-vrm":"https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.1.0/lib/three-vrm.module.js",
+"@pixiv/three-vrm-core":"https://cdn.jsdelivr.net/npm/@pixiv/three-vrm-core@2.1.0/lib/three-vrm-core.module.js",
+"@pixiv/three-vrm-animation":"https://cdn.jsdelivr.net/npm/@pixiv/three-vrm-animation@2.1.0/lib/three-vrm-animation.module.js"
+}}
+</script>
+<script type="module">
+const $ = id => document.getElementById(id);
+const statusEl = $('status');
+function say(msg, err) { statusEl.textContent = msg || ''; statusEl.classList.toggle('err', !!err); }
+
+let THREE, GLTFLoader, VRMLoaderPlugin, VRMUtils, VRMAnimationLoaderPlugin, createVRMAnimationClip, VRMLookAtQuaternionProxy;
+try {
+  THREE = await import('three');
+  ({ GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'));
+  ({ VRMLoaderPlugin, VRMUtils } = await import('@pixiv/three-vrm'));
+  ({ VRMAnimationLoaderPlugin, createVRMAnimationClip, VRMLookAtQuaternionProxy } = await import('@pixiv/three-vrm-animation'));
+} catch (e) {
+  say('3D表示の部品を読み込めませんでした。ページを開き直してください。(' + e.message + ')', true);
+  throw e;
+}
+
+const BLEND = 0.2;
+const canvas = $('cv');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color($('bgc').value);
+const camera = new THREE.PerspectiveCamera(30, 720 / 1280, 0.1, 50);
+scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+const sun = new THREE.DirectionalLight(0xffffff, 2); sun.position.set(1, 2, 3); scene.add(sun);
+
+let vrm = null, mixer = null, modelH = 1.4;
+let items = [];          // {name, anim, clip, action, dur}
+let starts = [], total = 0;
+let t = 0, playing = false, last = performance.now();
+let recorder = null, chunks = [], recBlob = null, recExt = 'webm';
+
+// Overlay a chosen expression and a timeline-driven blink on top of whatever the motion sets.
+const faceSet = new Set();
+function face() {
+  const em = vrm.expressionManager; if (!em) return;
+  const ex = $('expr').value, k = Number($('exprv').value);
+  for (const n of [...faceSet]) if (n !== ex) { em.setValue(n, 0); faceSet.delete(n); }
+  if (ex) { em.setValue(ex, k); faceSet.add(ex); }
+  if ($('blink').checked) {
+    const ph = (t + 0.7) % 3.4;
+    em.setValue('blink', ph < 0.16 ? Math.sin(Math.PI * ph / 0.16) : 0); faceSet.add('blink');
+  }
+}
+
+function makeLoader() {
+  const l = new GLTFLoader();
+  l.register(p => new VRMLoaderPlugin(p));
+  l.register(p => new VRMAnimationLoaderPlugin(p));
+  return l;
+}
+// Parse from memory. Textures go through <img> (not fetch) so they load inside this page's sandbox.
+async function parseFile(file) {
+  const buf = await file.arrayBuffer();
+  const cib = self.createImageBitmap;
+  let p;
+  try { self.createImageBitmap = undefined; p = makeLoader().parseAsync(buf, ''); }
+  finally { self.createImageBitmap = cib; }
+  return p;
+}
+
+function frame() {
+  const [w, h] = $('size').value.split('x').map(Number);
+  if (canvas.width !== w || canvas.height !== h) renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  const span = modelH * 1.45;                       // room for raised arms and jumps
+  const vfov = THREE.MathUtils.degToRad(camera.fov);
+  let dist = (span / 2) / Math.tan(vfov / 2);
+  const needW = modelH * 1.3;                       // arm span
+  dist = Math.max(dist, (needW / 2) / Math.tan(vfov / 2) / camera.aspect);
+  dist *= Number($('zoom').value);
+  const cy = modelH * 0.52 + Number($('camy').value);
+  camera.position.set(0, cy, dist);
+  camera.lookAt(0, cy, 0);
+  camera.updateProjectionMatrix();
+}
+
+function rebuild() {
+  if (mixer) mixer.stopAllAction();
+  mixer = vrm ? new THREE.AnimationMixer(vrm.scene) : null;
+  starts = []; total = 0;
+  let O = new THREE.Vector3(), prevEnd = null;
+  for (const it of items) {
+    starts.push(total);
+    it.O = new THREE.Vector3();
+    if (vrm) {
+      it.clip = createVRMAnimationClip(it.anim, vrm);
+      // Carry the standing position over: this clip starts where the previous one ended (floor plane only).
+      const tr = it.clip.tracks.find(k => k.name.endsWith('.position'));
+      const v = tr ? tr.values : null, n = v ? v.length : 0;
+      const s = v ? new THREE.Vector3(v[0], 0, v[2]) : new THREE.Vector3();
+      const e = v ? new THREE.Vector3(v[n - 3], 0, v[n - 1]) : new THREE.Vector3();
+      if (prevEnd) O = O.clone().add(prevEnd).sub(s);
+      it.O = O.clone(); prevEnd = e;
+      it.dur = it.clip.duration;
+      it.action = mixer.clipAction(it.clip);
+      it.action.setLoop(THREE.LoopOnce, 1);
+      it.action.clampWhenFinished = true;
+      it.action.play();
+      it.action.paused = true;
+      it.action.weight = 0;
+    }
+    total += it.dur;
+  }
+  t = Math.min(t, total);
+  renderList();
+  const ready = !!vrm && items.length > 0;
+  $('play').disabled = !ready; $('seek').disabled = !ready; $('rec').disabled = !ready;
+  $('seek').max = total || 1;
+  $('ttotal').textContent = total.toFixed(2);
+  $('sum').textContent = total.toFixed(2);
+}
+
+function renderList() {
+  const ol = $('clips'); ol.textContent = '';
+  items.forEach((it, i) => {
+    const li = document.createElement('li');
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = i + 1;
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = it.name;
+    const d = document.createElement('span'); d.className = 'd'; d.textContent = it.dur.toFixed(2) + ' 秒';
+    const mk = (label, aria, fn, dis) => { const b = document.createElement('button'); b.textContent = label; b.setAttribute('aria-label', aria); b.disabled = !!dis; b.onclick = fn; return b; };
+    li.append(n, nm, d,
+      mk('↑', '上へ', () => { [items[i - 1], items[i]] = [items[i], items[i - 1]]; rebuild(); }, i === 0 || recorder),
+      mk('↓', '下へ', () => { [items[i + 1], items[i]] = [items[i], items[i + 1]]; rebuild(); }, i === items.length - 1 || recorder),
+      mk('×', '外す', () => { items.splice(i, 1); rebuild(); }, recorder));
+    ol.append(li);
+  });
+}
+
+function apply() {
+  if (!mixer || !items.length) return;
+  let idx = items.length - 1;
+  for (let i = 0; i < items.length; i++) if (t < starts[i] + items[i].dur) { idx = i; break; }
+  const local = Math.min(Math.max(t - starts[idx], 0), items[idx].dur);
+  const a = ($('blend').checked && idx > 0 && local < BLEND) ? local / BLEND : 1;
+  items.forEach((it, i) => {
+    if (i === idx) { it.action.time = local; it.action.weight = a; }
+    else if (i === idx - 1 && a < 1) { it.action.time = it.dur; it.action.weight = 1 - a; }
+    else it.action.weight = 0;
+  });
+  const off = new THREE.Vector3();
+  if ($('carry').checked) {
+    if (a < 1 && idx > 0) off.lerpVectors(items[idx - 1].O, items[idx].O, a); else off.copy(items[idx].O);
+    off.applyQuaternion(vrm.scene.quaternion);
+  }
+  vrm.scene.position.copy(off);
+  mixer.update(0);
+  $('tclip').textContent = (idx + 1) + '本目';
+}
+
+function tick(now) {
+  const dt = Math.min((now - last) / 1000, 0.1); last = now;
+  if (playing && total > 0) {
+    t += dt;
+    if (t >= total) {
+      if (recorder) { t = total; playing = false; setTimeout(() => recorder && recorder.state !== 'inactive' && recorder.stop(), 150); }
+      else t = 0;
+    }
+  }
+  apply();
+  if (vrm) { face(); vrm.update(dt); }
+  frame();
+  renderer.render(scene, camera);
+  if (document.activeElement !== $('seek')) $('seek').value = t;
+  $('tnow').textContent = t.toFixed(2);
+  $('play').textContent = playing ? '一時停止' : '再生';
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+$('vrmFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  say('モデルを読み込んでいます…');
+  try {
+    const gltf = await parseFile(f);
+    const v = gltf.userData.vrm;
+    if (!v) throw new Error('VRMとして読めませんでした');
+    if (vrm) { scene.remove(vrm.scene); VRMUtils.deepDispose(vrm.scene); }
+    VRMUtils.rotateVRM0?.(v);
+    v.scene.traverse(o => { o.frustumCulled = false; });
+    if (v.lookAt) { const proxy = new VRMLookAtQuaternionProxy(v.lookAt); proxy.name = 'lookAtQuaternionProxy'; v.scene.add(proxy); }
+    vrm = v; scene.add(v.scene);
+    const box = new THREE.Box3().setFromObject(v.scene);
+    modelH = Math.max(box.max.y, 0.5);
+    $('vrmName').textContent = f.name;
+    $('empty').hidden = true;
+    rebuild(); say('');
+  } catch (err) { say('モデルを読み込めませんでした: ' + err.message, true); }
+};
+
+$('vrmaFile').onchange = async e => {
+  const files = [...e.target.files].sort((a, b) => a.name.localeCompare(b.name, 'ja', { numeric: true }));
+  e.target.value = '';
+  say('モーションを読み込んでいます…');
+  const bad = [];
+  for (const f of files) {
+    try {
+      const gltf = await parseFile(f);
+      const anim = gltf.userData.vrmAnimations && gltf.userData.vrmAnimations[0];
+      if (!anim) throw new Error('no animation');
+      items.push({ name: f.name, anim, dur: anim.duration || 0 });
+    } catch { bad.push(f.name); }
+  }
+  rebuild();
+  say(bad.length ? '読み込めなかったファイル: ' + bad.join(', ') : (vrm ? '' : 'モデルを読み込むと再生できます。'), bad.length > 0);
+};
+
+$('play').onclick = () => { if (recorder) return; if (t >= total) t = 0; playing = !playing; };
+$('seek').oninput = e => { if (!recorder) t = Number(e.target.value); };
+$('bgc').oninput = e => scene.background.set(e.target.value);
+
+function pickMime() {
+  const c = ['video/mp4;codecs=avc1.640028', 'video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+  return c.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || '';
+}
+function lock(on) {
+  for (const id of ['vrmFile', 'vrmaFile', 'size', 'blend', 'carry', 'play', 'seek']) $(id).disabled = on;
+  $('rec').disabled = on; $('stop').hidden = !on; renderList();
+}
+$('rec').onclick = () => {
+  if (!window.MediaRecorder || !canvas.captureStream) { say('この環境では録画できません。', true); return; }
+  const mime = pickMime();
+  recExt = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
+  chunks = []; recBlob = null; $('preview').hidden = true; $('save').hidden = true;
+  let cancelled = false;
+  try { recorder = new MediaRecorder(canvas.captureStream(30), { mimeType: mime || undefined, videoBitsPerSecond: 10_000_000 }); }
+  catch (err) { recorder = null; say('録画を開始できませんでした: ' + err.message, true); return; }
+  recorder.ondataavailable = ev => { if (ev.data.size) chunks.push(ev.data); };
+  recorder.onstop = () => {
+    const r = recorder; recorder = null; playing = false; lock(false);
+    r.stream.getTracks().forEach(x => x.stop());
+    if (cancelled || recorder_cancel) { recorder_cancel = false; say('録画を中止しました。'); return; }
+    recBlob = new Blob(chunks, { type: recExt === 'mp4' ? 'video/mp4' : 'video/webm' });
+    const pv = $('preview'); if (pv.src) URL.revokeObjectURL(pv.src);
+    pv.src = URL.createObjectURL(recBlob); pv.hidden = false;
+    $('save').hidden = false;
+    say('録画が終わりました(' + recExt.toUpperCase() + '、' + (recBlob.size / 1048576).toFixed(1) + ' MB)。');
+  };
+  t = 0; last = performance.now(); lock(true); playing = true;
+  recorder.start(500);
+  say('録画中…');
+};
+let recorder_cancel = false;
+$('stop').onclick = () => { if (recorder && recorder.state !== 'inactive') { recorder_cancel = true; recorder.stop(); } };
+
+$('save').onclick = () => {
+  if (!recBlob) return;
+  const a = document.createElement('a');
+  a.href = $('preview').src;
+  a.download = 'vrma-sequence-' + $('size').value + '.' + recExt;
+  document.body.append(a); a.click(); a.remove();
+  say('保存しました。');
+};
+</script>
+</body>
+</html>
