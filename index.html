@@ -35,7 +35,12 @@ header p { margin: 4px 0 0; color: var(--muted); max-width: 60ch }
 .panel { flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 22px }
 .stage { position: relative; border: 1px solid var(--stage-edge); line-height: 0; max-width: 100% }
 canvas { display: block; max-width: 100%; max-height: 72vh; height: auto; width: auto }
-.empty { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center;
+.top { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between }
+.lang { display: flex; gap: 6px }
+.lang button { padding: 2px 10px; font-size: .85rem }
+.lang button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent) }
+section h2 b { font-weight: inherit }
+.empty { white-space: pre-line; position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center;
   line-height: 1.6; color: #3d3748; font-family: var(--display); font-weight: 500 }
 .transport { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 8px }
 .transport .row { display: flex; gap: 10px; align-items: center }
@@ -76,90 +81,94 @@ video { max-width: 100%; max-height: 320px; border: 1px solid var(--line); align
 <body>
 <div class="wrap">
   <header>
-    <h1>VRMA Sequence Player <small>VRMA連続プレイヤー</small></h1>
-    <p>VRMモデルに複数のVRMAモーションを順番に続けて再生し、1本の動画として録画します。ファイルはこのページの中だけで処理され、外部には送信されません。</p>
+    <div class="top">
+      <h1>VRMA Sequence Player <small data-i18n="sub">VRMA連続プレイヤー</small></h1>
+      <div class="lang" role="group" aria-label="Language"><button id="lang-ja" lang="ja">日本語</button><button id="lang-en" lang="en">English</button></div>
+    </div>
+    <p data-i18n="lead">VRMモデルに複数のVRMAモーションを順番に続けて再生し、1本の動画として録画します。ファイルはこのページの中だけで処理され、外部には送信されません。</p>
   </header>
   <div class="cols">
     <div class="stage-col">
       <div class="stage">
         <canvas id="cv" width="720" height="1280"></canvas>
-        <div class="empty" id="empty">VRMモデルを読み込むと<br>ここに表示されます</div>
+        <div class="empty" id="empty" data-i18n="empty">VRMモデルを読み込むと
+ここに表示されます</div>
       </div>
       <div class="transport">
         <div class="row">
-          <button id="play" class="primary" disabled>再生</button>
-          <input type="range" id="seek" min="0" max="1" step="0.001" value="0" disabled aria-label="再生位置">
+          <button id="play" class="primary" data-i18n="play" disabled>再生</button>
+          <input type="range" id="seek" min="0" max="1" step="0.001" value="0" disabled aria-label="再生位置" data-i18n-aria="seekAria">
         </div>
-        <div class="time"><span id="tnow">0.00</span> / <span id="ttotal">0.00</span> 秒　<span id="tclip"></span></div>
+        <div class="time"><span id="tnow">0.00</span> / <span id="ttotal">0.00</span> <span data-i18n="sec">秒</span>　<span id="tclip"></span></div>
       </div>
     </div>
 
     <div class="panel">
       <section>
-        <h2><span>1</span>モデル</h2>
-        <label class="filebtn">VRMファイルを選ぶ<input type="file" id="vrmFile" accept=".vrm"></label>
+        <h2><span>1</span><b data-i18n="hModel">モデル</b></h2>
+        <label class="filebtn"><span data-i18n="pickVrm">VRMファイルを選ぶ</span><input type="file" id="vrmFile" accept=".vrm"></label>
         <div class="fname" id="vrmName">未選択</div>
       </section>
 
       <section>
-        <h2><span>2</span>モーション</h2>
-        <label class="filebtn">VRMAファイルを選ぶ(複数可)<input type="file" id="vrmaFile" accept=".vrma" multiple></label>
-        <p class="hint">ファイル名の順に並びます。↑↓で入れ替えできます。</p>
+        <h2><span>2</span><b data-i18n="hMotion">モーション</b></h2>
+        <label class="filebtn"><span data-i18n="pickVrma">VRMAファイルを選ぶ(複数可)</span><input type="file" id="vrmaFile" accept=".vrma" multiple></label>
+        <p class="hint" data-i18n="sortHint">ファイル名の順に並びます。↑↓で入れ替えできます。</p>
         <ol class="clips" id="clips"></ol>
-        <div>合計 <span class="total" id="sum">0.00</span> 秒</div>
-        <label class="check"><input type="checkbox" id="blend" checked>つなぎ目を0.2秒かけてなめらかにする</label>
-        <label class="check"><input type="checkbox" id="carry" checked>前の動きが終わった位置から次を始める</label>
+        <div><span data-i18n="total">合計</span> <span class="total" id="sum">0.00</span> <span data-i18n="sec">秒</span></div>
+        <label class="check"><input type="checkbox" id="blend" checked><span data-i18n="blend">つなぎ目を0.2秒かけてなめらかにする</span></label>
+        <label class="check"><input type="checkbox" id="carry" checked><span data-i18n="carry">前の動きが終わった位置から次を始める</span></label>
       </section>
 
       <section>
-        <h2><span>3</span>表情</h2>
+        <h2><span>3</span><b data-i18n="hFace">表情</b></h2>
         <div class="grid">
-          <label for="expr">表情</label>
+          <label for="expr" data-i18n="expr">表情</label>
           <select id="expr">
-            <option value="">モーションのまま</option>
-            <option value="happy" selected>笑顔</option>
-            <option value="relaxed">おだやか</option>
-            <option value="surprised">驚き</option>
-            <option value="sad">悲しい</option>
+            <option value="" data-i18n="exNone">モーションのまま</option>
+            <option value="happy" selected data-i18n="exHappy">笑顔</option>
+            <option value="relaxed" data-i18n="exRelaxed">おだやか</option>
+            <option value="surprised" data-i18n="exSurprised">驚き</option>
+            <option value="sad" data-i18n="exSad">悲しい</option>
           </select>
-          <label for="exprv">強さ</label>
+          <label for="exprv" data-i18n="strength">強さ</label>
           <input type="range" id="exprv" min="0" max="1" step="0.01" value="0.7">
         </div>
-        <label class="check"><input type="checkbox" id="blink" checked>まばたきを入れる</label>
-        <p class="hint">選んだ表情を最初から最後まで重ねます。「モーションのまま」はVRMAに入っている表情だけを使います。</p>
+        <label class="check"><input type="checkbox" id="blink" checked><span data-i18n="blink">まばたきを入れる</span></label>
+        <p class="hint" data-i18n="faceHint">選んだ表情を最初から最後まで重ねます。「モーションのまま」はVRMAに入っている表情だけを使います。</p>
       </section>
 
       <section>
-        <h2><span>4</span>画面</h2>
+        <h2><span>4</span><b data-i18n="hFrame">画面</b></h2>
         <div class="grid">
-          <label for="size">サイズ</label>
+          <label for="size" data-i18n="size">サイズ</label>
           <select id="size">
-            <option value="720x1280">縦 720×1280</option>
-            <option value="1080x1920">縦 1080×1920</option>
-            <option value="1280x720">横 1280×720</option>
-            <option value="1920x1080">横 1920×1080</option>
+            <option value="720x1280" data-i18n="s1">縦 720×1280</option>
+            <option value="1080x1920" data-i18n="s2">縦 1080×1920</option>
+            <option value="1280x720" data-i18n="s3">横 1280×720</option>
+            <option value="1920x1080" data-i18n="s4">横 1920×1080</option>
           </select>
-          <label for="bgc">背景色</label>
+          <label for="bgc" data-i18n="bg">背景色</label>
           <input type="color" id="bgc" value="#8a8f98">
-          <label for="zoom">距離</label>
+          <label for="zoom" data-i18n="dist">距離</label>
           <input type="range" id="zoom" min="0.6" max="2" step="0.01" value="1">
-          <label for="camy">高さ</label>
+          <label for="camy" data-i18n="height">高さ</label>
           <input type="range" id="camy" min="-0.5" max="0.5" step="0.01" value="0">
         </div>
-        <p class="hint">ジャンプや手を上げる動きで体が切れないよう、上下に余白を残してください。</p>
+        <p class="hint" data-i18n="frameHint">ジャンプや手を上げる動きで体が切れないよう、上下に余白を残してください。</p>
       </section>
 
       <section>
-        <h2><span>5</span>録画</h2>
+        <h2><span>5</span><b data-i18n="hRec">録画</b></h2>
         <div class="btnrow">
-          <button id="rec" class="rec" disabled>最初から録画する</button>
-          <button id="stop" hidden>中止</button>
+          <button id="rec" class="rec" data-i18n="rec" disabled>最初から録画する</button>
+          <button id="stop" data-i18n="stop" hidden>中止</button>
         </div>
-        <p class="hint">録画中は実時間で再生します。終わるまでこのページを表示したままにしてください。</p>
+        <p class="hint" data-i18n="recHint">録画中は実時間で再生します。終わるまでこのページを表示したままにしてください。</p>
         <p id="status" role="status"></p>
         <video id="preview" controls hidden></video>
         <div class="btnrow">
-          <button id="save" class="primary" hidden>動画を保存する</button>
+          <button id="save" class="primary" data-i18n="save" hidden>動画を保存する</button>
         </div>
       </section>
     </div>
@@ -180,6 +189,72 @@ const $ = id => document.getElementById(id);
 const statusEl = $('status');
 function say(msg, err) { statusEl.textContent = msg || ''; statusEl.classList.toggle('err', !!err); }
 
+// --- Language (日本語 / English)
+const L = {
+  ja: {
+    sub: 'VRMA連続プレイヤー',
+    lead: 'VRMモデルに複数のVRMAモーションを順番に続けて再生し、1本の動画として録画します。ファイルはこのページの中だけで処理され、外部には送信されません。',
+    empty: 'VRMモデルを読み込むと\nここに表示されます',
+    play: '再生', pause: '一時停止', seekAria: '再生位置', sec: '秒', clipNo: n => n + '本目',
+    hModel: 'モデル', pickVrm: 'VRMファイルを選ぶ', none: '未選択',
+    hMotion: 'モーション', pickVrma: 'VRMAファイルを選ぶ(複数可)', sortHint: 'ファイル名の順に並びます。↑↓で入れ替えできます。',
+    total: '合計', blend: 'つなぎ目を0.2秒かけてなめらかにする', carry: '前の動きが終わった位置から次を始める',
+    up: '上へ', down: '下へ', remove: '外す',
+    hFace: '表情', expr: '表情', exNone: 'モーションのまま', exHappy: '笑顔', exRelaxed: 'おだやか', exSurprised: '驚き', exSad: '悲しい',
+    strength: '強さ', blink: 'まばたきを入れる',
+    faceHint: '選んだ表情を最初から最後まで重ねます。「モーションのまま」はVRMAに入っている表情だけを使います。',
+    hFrame: '画面', size: 'サイズ', s1: '縦 720×1280', s2: '縦 1080×1920', s3: '横 1280×720', s4: '横 1920×1080',
+    bg: '背景色', dist: '距離', height: '高さ', frameHint: 'ジャンプや手を上げる動きで体が切れないよう、上下に余白を残してください。',
+    hRec: '録画', rec: '最初から録画する', stop: '中止', recHint: '録画中は実時間で再生します。終わるまでこのページを表示したままにしてください。', save: '動画を保存する',
+    loadFail: m => '3D表示の部品を読み込めませんでした。ページを開き直してください。(' + m + ')',
+    loadingModel: 'モデルを読み込んでいます…', notVrm: 'VRMとして読めませんでした', modelFail: m => 'モデルを読み込めませんでした: ' + m,
+    loadingMotion: 'モーションを読み込んでいます…', badFiles: f => '読み込めなかったファイル: ' + f, needModel: 'モデルを読み込むと再生できます。',
+    cannotRecord: 'この環境では録画できません。', recStartFail: m => '録画を開始できませんでした: ' + m, recCancelled: '録画を中止しました。',
+    recDone: (ext, mb) => '録画が終わりました(' + ext + '、' + mb + ' MB)。', recording: '録画中…', saved: '保存しました。',
+  },
+  en: {
+    sub: '',
+    lead: 'Plays multiple VRMA motions back-to-back on a VRM model and records them as a single video. Your files are processed inside this page only and are never uploaded.',
+    empty: 'Load a VRM model\nto see it here',
+    play: 'Play', pause: 'Pause', seekAria: 'Playback position', sec: 's', clipNo: n => 'Clip ' + n,
+    hModel: 'Model', pickVrm: 'Choose a VRM file', none: 'No file selected',
+    hMotion: 'Motions', pickVrma: 'Choose VRMA files (multiple)', sortHint: 'Sorted by file name. Use ↑↓ to reorder.',
+    total: 'Total', blend: 'Smooth each join over 0.2 seconds', carry: 'Start each motion where the previous one ended',
+    up: 'Move up', down: 'Move down', remove: 'Remove',
+    hFace: 'Expression', expr: 'Expression', exNone: 'As in the motion', exHappy: 'Smile', exRelaxed: 'Relaxed', exSurprised: 'Surprised', exSad: 'Sad',
+    strength: 'Strength', blink: 'Add blinking',
+    faceHint: 'The chosen expression is applied from start to end. "As in the motion" uses only the expressions stored in the VRMA files.',
+    hFrame: 'Frame', size: 'Size', s1: 'Portrait 720×1280', s2: 'Portrait 1080×1920', s3: 'Landscape 1280×720', s4: 'Landscape 1920×1080',
+    bg: 'Background', dist: 'Distance', height: 'Height', frameHint: 'Leave room above and below so jumps and raised arms stay in frame.',
+    hRec: 'Record', rec: 'Record from the start', stop: 'Cancel', recHint: 'Recording runs in real time. Keep this page visible until it finishes.', save: 'Save video',
+    loadFail: m => 'Could not load the 3D libraries. Reload the page. (' + m + ')',
+    loadingModel: 'Loading the model…', notVrm: 'This file could not be read as a VRM', modelFail: m => 'Could not load the model: ' + m,
+    loadingMotion: 'Loading motions…', badFiles: f => 'Could not load: ' + f, needModel: 'Load a model to start playback.',
+    cannotRecord: 'Recording is not available in this browser.', recStartFail: m => 'Could not start recording: ' + m, recCancelled: 'Recording cancelled.',
+    recDone: (ext, mb) => 'Recording finished (' + ext + ', ' + mb + ' MB).', recording: 'Recording…', saved: 'Saved.',
+  },
+};
+let lang = 'ja';
+try { lang = localStorage.getItem('vsp-lang') || ((navigator.language || 'ja').toLowerCase().startsWith('ja') ? 'ja' : 'en'); } catch {}
+if (!L[lang]) lang = 'ja';
+let vrmFileName = '';
+function tr(k, ...a) { const v = L[lang][k] ?? L.ja[k]; return typeof v === 'function' ? v(...a) : v; }
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-aria]').forEach(el => { el.setAttribute('aria-label', tr(el.dataset.i18nAria)); });
+  $('vrmName').textContent = vrmFileName || tr('none');
+  for (const c of ['ja', 'en']) $('lang-' + c).setAttribute('aria-pressed', String(c === lang));
+}
+function setLang(c) {
+  lang = c; try { localStorage.setItem('vsp-lang', c); } catch {}
+  say(''); applyLang();
+  try { renderList(); } catch {}
+}
+$('lang-ja').onclick = () => setLang('ja');
+$('lang-en').onclick = () => setLang('en');
+applyLang();
+
 let THREE, GLTFLoader, VRMLoaderPlugin, VRMUtils, VRMAnimationLoaderPlugin, createVRMAnimationClip, VRMLookAtQuaternionProxy;
 try {
   THREE = await import('three');
@@ -187,7 +262,7 @@ try {
   ({ VRMLoaderPlugin, VRMUtils } = await import('@pixiv/three-vrm'));
   ({ VRMAnimationLoaderPlugin, createVRMAnimationClip, VRMLookAtQuaternionProxy } = await import('@pixiv/three-vrm-animation'));
 } catch (e) {
-  say('3D表示の部品を読み込めませんでした。ページを開き直してください。(' + e.message + ')', true);
+  say(tr('loadFail', e.message), true);
   throw e;
 }
 
@@ -294,12 +369,12 @@ function renderList() {
     const li = document.createElement('li');
     const n = document.createElement('span'); n.className = 'n'; n.textContent = i + 1;
     const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = it.name;
-    const d = document.createElement('span'); d.className = 'd'; d.textContent = it.dur.toFixed(2) + ' 秒';
+    const d = document.createElement('span'); d.className = 'd'; d.textContent = it.dur.toFixed(2) + ' ' + tr('sec');
     const mk = (label, aria, fn, dis) => { const b = document.createElement('button'); b.textContent = label; b.setAttribute('aria-label', aria); b.disabled = !!dis; b.onclick = fn; return b; };
     li.append(n, nm, d,
-      mk('↑', '上へ', () => { [items[i - 1], items[i]] = [items[i], items[i - 1]]; rebuild(); }, i === 0 || recorder),
-      mk('↓', '下へ', () => { [items[i + 1], items[i]] = [items[i], items[i + 1]]; rebuild(); }, i === items.length - 1 || recorder),
-      mk('×', '外す', () => { items.splice(i, 1); rebuild(); }, recorder));
+      mk('↑', tr('up'), () => { [items[i - 1], items[i]] = [items[i], items[i - 1]]; rebuild(); }, i === 0 || recorder),
+      mk('↓', tr('down'), () => { [items[i + 1], items[i]] = [items[i], items[i + 1]]; rebuild(); }, i === items.length - 1 || recorder),
+      mk('×', tr('remove'), () => { items.splice(i, 1); rebuild(); }, recorder));
     ol.append(li);
   });
 }
@@ -322,7 +397,7 @@ function apply() {
   }
   vrm.scene.position.copy(off);
   mixer.update(0);
-  $('tclip').textContent = (idx + 1) + '本目';
+  $('tclip').textContent = tr('clipNo', idx + 1);
 }
 
 function tick(now) {
@@ -340,18 +415,18 @@ function tick(now) {
   renderer.render(scene, camera);
   if (document.activeElement !== $('seek')) $('seek').value = t;
   $('tnow').textContent = t.toFixed(2);
-  $('play').textContent = playing ? '一時停止' : '再生';
+  $('play').textContent = tr(playing ? 'pause' : 'play');
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
 
 $('vrmFile').onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
-  say('モデルを読み込んでいます…');
+  say(tr('loadingModel'));
   try {
     const gltf = await parseFile(f);
     const v = gltf.userData.vrm;
-    if (!v) throw new Error('VRMとして読めませんでした');
+    if (!v) throw new Error(tr('notVrm'));
     if (vrm) { scene.remove(vrm.scene); VRMUtils.deepDispose(vrm.scene); }
     VRMUtils.rotateVRM0?.(v);
     v.scene.traverse(o => { o.frustumCulled = false; });
@@ -359,16 +434,16 @@ $('vrmFile').onchange = async e => {
     vrm = v; scene.add(v.scene);
     const box = new THREE.Box3().setFromObject(v.scene);
     modelH = Math.max(box.max.y, 0.5);
-    $('vrmName').textContent = f.name;
+    vrmFileName = f.name; $('vrmName').textContent = f.name;
     $('empty').hidden = true;
     rebuild(); say('');
-  } catch (err) { say('モデルを読み込めませんでした: ' + err.message, true); }
+  } catch (err) { say(tr('modelFail', err.message), true); }
 };
 
 $('vrmaFile').onchange = async e => {
   const files = [...e.target.files].sort((a, b) => a.name.localeCompare(b.name, 'ja', { numeric: true }));
   e.target.value = '';
-  say('モーションを読み込んでいます…');
+  say(tr('loadingMotion'));
   const bad = [];
   for (const f of files) {
     try {
@@ -379,7 +454,7 @@ $('vrmaFile').onchange = async e => {
     } catch { bad.push(f.name); }
   }
   rebuild();
-  say(bad.length ? '読み込めなかったファイル: ' + bad.join(', ') : (vrm ? '' : 'モデルを読み込むと再生できます。'), bad.length > 0);
+  say(bad.length ? tr('badFiles', bad.join(', ')) : (vrm ? '' : tr('needModel')), bad.length > 0);
 };
 
 $('play').onclick = () => { if (recorder) return; if (t >= total) t = 0; playing = !playing; };
@@ -395,27 +470,27 @@ function lock(on) {
   $('rec').disabled = on; $('stop').hidden = !on; renderList();
 }
 $('rec').onclick = () => {
-  if (!window.MediaRecorder || !canvas.captureStream) { say('この環境では録画できません。', true); return; }
+  if (!window.MediaRecorder || !canvas.captureStream) { say(tr('cannotRecord'), true); return; }
   const mime = pickMime();
   recExt = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
   chunks = []; recBlob = null; $('preview').hidden = true; $('save').hidden = true;
   let cancelled = false;
   try { recorder = new MediaRecorder(canvas.captureStream(30), { mimeType: mime || undefined, videoBitsPerSecond: 10_000_000 }); }
-  catch (err) { recorder = null; say('録画を開始できませんでした: ' + err.message, true); return; }
+  catch (err) { recorder = null; say(tr('recStartFail', err.message), true); return; }
   recorder.ondataavailable = ev => { if (ev.data.size) chunks.push(ev.data); };
   recorder.onstop = () => {
     const r = recorder; recorder = null; playing = false; lock(false);
     r.stream.getTracks().forEach(x => x.stop());
-    if (cancelled || recorder_cancel) { recorder_cancel = false; say('録画を中止しました。'); return; }
+    if (cancelled || recorder_cancel) { recorder_cancel = false; say(tr('recCancelled')); return; }
     recBlob = new Blob(chunks, { type: recExt === 'mp4' ? 'video/mp4' : 'video/webm' });
     const pv = $('preview'); if (pv.src) URL.revokeObjectURL(pv.src);
     pv.src = URL.createObjectURL(recBlob); pv.hidden = false;
     $('save').hidden = false;
-    say('録画が終わりました(' + recExt.toUpperCase() + '、' + (recBlob.size / 1048576).toFixed(1) + ' MB)。');
+    say(tr('recDone', recExt.toUpperCase(), (recBlob.size / 1048576).toFixed(1)));
   };
   t = 0; last = performance.now(); lock(true); playing = true;
   recorder.start(500);
-  say('録画中…');
+  say(tr('recording'));
 };
 let recorder_cancel = false;
 $('stop').onclick = () => { if (recorder && recorder.state !== 'inactive') { recorder_cancel = true; recorder.stop(); } };
@@ -426,7 +501,7 @@ $('save').onclick = () => {
   a.href = $('preview').src;
   a.download = 'vrma-sequence-' + $('size').value + '.' + recExt;
   document.body.append(a); a.click(); a.remove();
-  say('保存しました。');
+  say(tr('saved'));
 };
 </script>
 </body>

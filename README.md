@@ -17,6 +17,7 @@ VRMモデルに複数のVRMAモーションを順番に続けて再生し、1本
 - 表情(笑顔など)とまばたきを重ねる
 - 画面サイズ(縦 / 横)、背景色、カメラの距離と高さの調整
 - 動画として録画して保存(対応ブラウザではMP4、それ以外はWebM)
+- 画面の言語切り替え(日本語 / English)
 
 ### 使い方
 
@@ -37,6 +38,10 @@ VRMモデルに複数のVRMAモーションを順番に続けて再生し、1本
 - [three.js](https://github.com/mrdoob/three.js)(MIT)
 - [@pixiv/three-vrm](https://github.com/pixiv/three-vrm) / three-vrm-animation(MIT)
 
+### ライセンス
+
+[MIT License](LICENSE)
+
 ## English
 
 A browser tool that plays multiple VRMA motions back-to-back on a VRM model and records them as a single video. No install needed: just open `index.html`.
@@ -52,16 +57,17 @@ The VRM and VRMA files you load are processed inside your browser only. Nothing 
 - Overlay a facial expression (such as a smile) and blinking
 - Adjust frame size (portrait / landscape), background color, camera distance and height
 - Record and save as a video (MP4 where the browser supports it, otherwise WebM)
+- Switch the interface language (日本語 / English)
 
 ### Usage
 
 1. Open `index.html` in a browser (Chrome or Edge recommended).
-2. Load a model with "VRMファイルを選ぶ".
-3. Select your motions with "VRMAファイルを選ぶ". They are sorted by file name; reorder with ↑↓.
+2. Load a model with "Choose a VRM file".
+3. Select your motions with "Choose VRMA files". They are sorted by file name; reorder with ↑↓.
 4. Play it back and check that the whole body stays in frame.
-5. Press "最初から録画する", then "動画を保存する" when it finishes.
+5. Press "Record from the start", then "Save video" when it finishes.
 
-The interface is currently in Japanese only.
+Use the 日本語 / English buttons at the top right to switch the interface language.
 
 ### Notes
 
@@ -73,3 +79,7 @@ The interface is currently in Japanese only.
 
 - [three.js](https://github.com/mrdoob/three.js) (MIT)
 - [@pixiv/three-vrm](https://github.com/pixiv/three-vrm) / three-vrm-animation (MIT)
+
+### License
+
+[MIT License](LICENSE)
